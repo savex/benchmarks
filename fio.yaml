@@ -1,14 +1,10 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: dbench-pv-claim
+  name: fio-pvc
+  #namespace: <your_namespace>
 spec:
   storageClassName: ssd
-  # storageClassName: gp2
-  # storageClassName: local-storage
-  # storageClassName: ibmc-block-bronze
-  # storageClassName: ibmc-block-silver
-  # storageClassName: ibmc-block-gold
   accessModes:
     - ReadWriteOnce
   resources:
@@ -18,31 +14,32 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dbench
+  name: fio
+  #namespace: <your_namespace>
 spec:
   template:
     spec:
       containers:
-      - name: dbench
-        image: logdna/dbench:latest
-        imagePullPolicy: Always
+      - name: fio
+        image: savex13/benchmarks:fio-3-26
+        imagePullPolicy: IfNotPresent
         env:
-          - name: DBENCH_MOUNTPOINT
+          - name: FIO_MOUNTPOINT
             value: /data
-          # - name: DBENCH_QUICK
-          #   value: "yes"
+          # - name: FIO_QUICK
+          #   value: "no"
           # - name: FIO_SIZE
-          #   value: 1G
+          #   value: 2G
           # - name: FIO_OFFSET_INCREMENT
-          #   value: 256M
+          #   value: 500M
           # - name: FIO_DIRECT
           #   value: "0"
         volumeMounts:
-        - name: dbench-pv
+        - name: fio-pv
           mountPath: /data
       restartPolicy: Never
       volumes:
-      - name: dbench-pv
+      - name: fio-pv
         persistentVolumeClaim:
-          claimName: dbench-pv-claim
+          claimName: fio-pvc
   backoffLimit: 4
