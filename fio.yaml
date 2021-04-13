@@ -34,6 +34,45 @@ spec:
           #   value: 500M
           # - name: FIO_DIRECT
           #   value: "0"
+          # - name: FIO_IODEPTH
+          #   value: 64
+
+          # Defaults/overide templates
+
+          # IOPS tests (defaults)
+          # - name: IOPS_BS
+          #   value: 4k
+          # - name: IOPS_DP
+          #   value: <same as FIO_IODEPTH>
+
+          # Bandwidth test 
+          # - name: BW_BS
+          #   value: 128k
+          # - name: BW_DP
+          #   value: <same as FIO_IODEPTH>
+
+          # Latency test 
+          # - name: LAT_BS
+          #   value: 4k
+          # - name: LAT_DP
+          #   value: 4
+
+          # Sequential tests
+          # - name: SEQ_BS
+          #   value: 1M
+          # - name: SEQ_DP
+          #   value: 16
+          # - name: SEQ_JOBS
+          #   value: 4
+
+          # Mixed test
+          # - name: MIX_BS
+          #   value: 4k
+          # - name: MIX_DP
+          #   value: <same as FIO_IODEPTH>
+          # - name: MIX_RWMIXREAD
+          #   value: 75
+
         volumeMounts:
         - name: fio-pv
           mountPath: /data
