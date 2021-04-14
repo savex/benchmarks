@@ -17,6 +17,5 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 VOLUME /tmp
-COPY ./fio-entrypoint.sh /entrypoint.sh
+COPY ./*.sh /
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["fio"]
