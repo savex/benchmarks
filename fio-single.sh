@@ -75,7 +75,7 @@ FIO_RWMIXREAD=$( get_var $MIX_RWMIXREAD "50")
 function get_options() {
     echo "--randrepeat=$FIO_RANDREPEAT "\
 "--verify=$FIO_VERIFY "\
-"--ioengine=$FIO_VERIFY "\
+"--ioengine=$FIO_IOENGINE "\
 "--direct=$FIO_DIRECT "\
 "--gtod_reduce=$FIO_GTOD_REDUCE "\
 "--name=$FIO_NAME "\
@@ -167,49 +167,65 @@ echo "=================="
 echo "==== Summary ====="
 echo "=================="
 
-# Parse output
+# Parse output and write a report
 LATENCY_VAL=$(get_latency $FIO_OUT)
+
+# Prepare 'report.csv'
+REPORT_FILE=$FIO_MOUNTPOINT/"report.csv"
+touch $REPORT_FILE
+echo "# hostname,test_run,test_name,read_percent,jobs,offset,block_size,io_depth,size,iops,bw,latency" >>$REPORT_FILE
 
 if [ $FIO_READWRITE = 'randrw' ]; then
     # get both read and write
     echo "Mixed R($FIO_RWMIXREAD%)/W"
-	READ_IOPS_VAL=$(get_iops_read $FIO_OUT)
-	WRITE_IOPS_VAL=$(get_iops_write $FIO_OUT)
-	READ_BW_VAL=$(get_bw_read $FIO_OUT)
-	WRITE_BW_VAL=$(get_bw_write $FIO_OUT)
+	READ_IOPS_VAL=$(get_iops_read "$FIO_OUT")
+	WRITE_IOPS_VAL=$(get_iops_write "$FIO_OUT")
+	READ_BW_VAL=$(get_bw_read "$FIO_OUT")
+	WRITE_BW_VAL=$(get_bw_write "$FIO_OUT")
     echo "IOPS: $READ_IOPS_VAL/$WRITE_IOPS_VAL"
     echo "BW: $READ_BW_VAL / $WRITE_BW_VAL"
 	echo "Average Latency (usec): $LATENCY_VAL"
+	# save values as csv
+	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,$FIO_RWMIXREAD,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$READ_IOPS_VAL,$READ_BW_VAL,$LATENCY_VAL" >>$REPORT_FILE	
+	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,$FIO_RWMIXREAD,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$WRITE_IOPS_VAL,$WRITE_BW_VAL,$LATENCY_VAL" >>$REPORT_FILE	
 elif [ $FIO_READWRITE = 'read' ]; then
     # get read values
     echo "Sequential Read"
-    READ_IOPS_VAL=$(get_iops_read $FIO_OUT)
-    READ_SEQ_VAL=$(get_seq_read $FIO_OUT)
+    READ_IOPS_VAL=$(get_iops_read "$FIO_OUT")
+    READ_SEQ_VAL=$(get_seq_read "$FIO_OUT")
     echo "IOPS: $READ_IOPS_VAL"
     echo "BW: $READ_SEQ_VAL"
+	# save values as csv
+	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,no,$FIO_JOBS,$FIO_OFFSET_INCREMENT,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$READ_IOPS_VAL,$READ_SEQ_VAL,$LATENCY_VAL" >>$REPORT_FILE
 elif [ $FIO_READWRITE = 'write' ]; then
     # get write values
     echo "Sequential Write"
-    WRITE_IOPS_VAL=$(get_iops_write $FIO_OUT)
-    WRITE_SEQ_VAL=$(get_seq_write $FIO_OUT)
+    WRITE_IOPS_VAL=$(get_iops_write "$FIO_OUT")
+    WRITE_SEQ_VAL=$(get_seq_write "$FIO_OUT")
     echo "IOPS: $WRITE_IOPS_VAL"
     echo "BW: $WRITE_SEQ_VAL"
+	# save values as csv
+	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,no,$FIO_JOBS,$FIO_OFFSET_INCREMENT,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$WRITE_IOPS_VAL,$WRITE_SEQ_VAL,$LATENCY_VAL" >>$REPORT_FILE
 elif [ $FIO_READWRITE = 'randread' ]; then
     # get read values
     echo "Random Read"
-    READ_IOPS_VAL=$(get_iops_read $FIO_OUT)
-    READ_BW_VAL=$(get_bw_read $FIO_OUT)
+    READ_IOPS_VAL=$(get_iops_read "$FIO_OUT")
+    READ_BW_VAL=$(get_bw_read "$FIO_OUT")
     echo "IOPS: $READ_IOPS_VAL"
     echo "BW: $READ_BW_VAL"
+	# save values as csv
+	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,no,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$READ_IOPS_VAL,$READ_BW_VAL,$LATENCY_VAL" >>$REPORT_FILE	
 elif [ $FIO_READWRITE = 'randwrite' ]; then
     # get write values
     echo "Random Write"
-    WRITE_IOPS_VAL=$(get_iops_write $FIO_OUT)
-    WRITE_BW_VAL=$(get_bw_write $FIO_OUT)
+    WRITE_IOPS_VAL=$(get_iops_write "$FIO_OUT")
+    WRITE_BW_VAL=$(get_bw_write "$FIO_OUT")
     echo "IOPS: $WRITE_IOPS_VAL"
     echo "BW: $WRITE_BW_VAL"
+	# save values as csv
+	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,no,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$WRITE_IOPS_VAL,$WRITE_BW_VAL,$LATENCY_VAL" >>$REPORT_FILE	
 fi
-	
+
 rm $FIO_MOUNTPOINT/fiotest
 exit 0
 

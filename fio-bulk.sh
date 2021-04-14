@@ -198,6 +198,21 @@ if [ -z $FIO_QUICK ] || [ "$FIO_QUICK" == "no" ]; then
     echo "Mixed Random Read/Write IOPS: $RW_MIX_R_IOPS/$RW_MIX_W_IOPS"
 fi
 
+# Prepare report.csv
+REPORT_FILE=$FIO_MOUNTPOINT/"report.csv"
+touch $REPORT_FILE
+echo "# hostname,test_run,test_name,read_percent,jobs,offset,block_size,io_depth,size,iops,bw,latency" >>$REPORT_FILE
+echo "$HOSTNAME,$FIO_TEST_SET,randread_iops,100%,1,no,$IOPS_BS,$IOPS_DP,$FIO_SIZE,$READ_IOPS_VAL,," >>$REPORT_FILE
+echo "$HOSTNAME,$FIO_TEST_SET,randwrite_iops,100%,1,no,$IOPS_BS,$IOPS_DP,$FIO_SIZE,$WRITE_IOPS_VAL,," >>$REPORT_FILE
+echo "$HOSTNAME,$FIO_TEST_SET,read_bw,100%,1,no,$BW_BS,$BW_DP,$FIO_SIZE,,$READ_BW_VAL," >>$REPORT_FILE
+echo "$HOSTNAME,$FIO_TEST_SET,write_bw,100%,1,no,$BW_BS,$BW_DP,$FIO_SIZE,,$WRITE_BW_VAL," >>$REPORT_FILE
+echo "$HOSTNAME,$FIO_TEST_SET,randread_lat,100%,1,no,$LAT_BS,$LAT_DP,$FIO_SIZE,,,$READ_LATENCY_VAL" >>$REPORT_FILE
+echo "$HOSTNAME,$FIO_TEST_SET,randwrite_lat,100%,1,no,$LAT_BS,$LAT_DP,$FIO_SIZE,,,$WRITE_LATENCY_VAL" >>$REPORT_FILE
+echo "$HOSTNAME,$FIO_TEST_SET,read_seq,100%,$SEQ_JOBS,$FIO_OFFSET_INCREMENT,$SEQ_BS,$SEQ_DP,$FIO_SIZE,,$READ_SEQ_VAL," >>$REPORT_FILE
+echo "$HOSTNAME,$FIO_TEST_SET,write_seq,100%,$SEQ_JOBS,$FIO_OFFSET_INCREMENT,$SEQ_BS,$SEQ_DP,$FIO_SIZE,,$WRITE_SEQ_VAL," >>$REPORT_FILE
+echo "$HOSTNAME,$FIO_TEST_SET,randrw_read,100%,1,no,$MIX_BS,$MIX_DP,$FIO_SIZE,$RW_MIX_R_IOPS,," >>$REPORT_FILE
+echo "$HOSTNAME,$FIO_TEST_SET,randrw_write,100%,1,no,$MIX_BS,$MIX_DP,$FIO_SIZE,$RW_MIX_W_IOPS,," >>$REPORT_FILE
+
 rm $FIO_MOUNTPOINT/fiotest
 exit 0
 
