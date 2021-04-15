@@ -26,7 +26,7 @@ Here is the list of updates made so far
 5. At the end of all tests, you'll see a summary that looks similar to this:
 ```
 ==================
-= Dbench Summary =
+==== Summary =====
 ==================
 Random Read/Write IOPS: 75.7k/59.7k. BW: 523MiB/s / 500MiB/s
 Average Latency (usec) Read/Write: 183.07/76.91
@@ -35,6 +35,15 @@ Mixed Random Read/Write IOPS: 43.1k/14.4k
 ```
 If latency is not shown for you, then it is probably something wrong with measuring it via kernel/device
 6. Once the tests are finished, clean up using: `kubectl delete -f dbench.yaml` and that should deprovision the persistent disk and delete it to minimize storage billing.
+
+# Reporting
+
+Full fio output is stored on mounted volume with filename of 'test\_runmode\_operation.log'
+Each test run will create 'report.csv' file on mounted volume with test run values collected
+```
+# hostname,test_run,test_name,read_percent,jobs,offset,block_size,io_depth,size,iops,bw,latency
+```
+If corresponding value was collected during the run - it will be stored in its respective place
 
 ## Notes / Troubleshooting
 
