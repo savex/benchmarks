@@ -26,6 +26,16 @@ spec:
         env:
           - name: FIO_MOUNTPOINT
             value: /data
+          # Run mode: 'synced' 
+          # rounds time down to 5min, adds 7 min
+          # and waits for that time to start
+          # Run mode: 'normal'
+          # Starts tests right away
+          # - name: RUN_MODE
+          #   value: "synced"
+
+          # - name: FIO_TEST_SET
+          #   value: "bulk"
           # - name: FIO_QUICK
           #   value: "no"
           # - name: FIO_SIZE

@@ -1,0 +1,101 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: fio-pvc
+  #namespace: <your_namespace>
+spec:
+  storageClassName: ssd
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1000Gi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fio
+  #namespace: <your_namespace>
+spec:
+  template:
+    spec:
+      containers:
+      - name: fio
+        image: savex13/benchmarks:fio-3-26
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: FIO_MOUNTPOINT
+            value: /data
+         # Run single fio test
+          - name: FIO_TEST_SET
+            value: "single"
+
+          # Run modes: 'synced' or 'normal'
+          # 'synced' rounds time down to 5min, adds 7 min
+          # and waits for that time to start
+          # 'normal' starts tests right away
+          # - name: RUN_MODE
+          #   value: "synced"
+
+          # Test specific
+          - name: FIO_NAME
+            value: single_run
+
+          # Test modes (default: randrw)
+          # - name: FIO_READWRITE
+          # Random read
+          #  value: randread        
+          # Random write
+          #  value: randwrite
+          # Sequential read
+          #  value: read
+          # Sequential write
+          #  value: write
+          # Mixed random read/write
+          #  value: randrw
+
+
+          - name: FIO_BS
+            value: 4k
+          - name: FIO_IODEPTH
+            value: 64
+          - name: FIO_SIZE
+            value: 2G
+        
+          - name: FIO_RAMP_TIME
+            value: 5s
+          - name: FIO_RUNTIME
+            value: 30s
+
+          # Sequential specific
+          # - name: FIO_OFFSET_INCREMENT
+          #   value: 500M
+          # - name: FIO_JOBS
+          #   value: 4
+
+          # Mixed specific
+          # - name: FIO_RWMIXREAD
+          #   value: 50
+
+
+          # Other options
+          # - name: FIO_RANDREPEAT
+          #   value: 0
+          # - name: FIO_VERIFY
+          #   value: 0
+          # - name: FIO_IOENGINE
+          #   value: libaio
+          # - name: FIO_DIRECT
+          #   value: 1
+          # - name: FIO_GTOD_REDUCE
+          #   value: 1
+
+        volumeMounts:
+        - name: fio-pv
+          mountPath: /data
+      restartPolicy: Never
+      volumes:
+      - name: fio-pv
+        persistentVolumeClaim:
+          claimName: fio-pvc
+  backoffLimit: 4
