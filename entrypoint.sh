@@ -19,11 +19,27 @@ function get_var() {
 
 # Global vars
 FIO_TEST_SET=$( get_var $FIO_TEST_SET "bulk")
+FIO_MOUNTPOINT=$( get_var $FIO_MOUNTPOINT "/tmp")
 
 if [ $FIO_TEST_SET = 'bulk' ]; then
     /fio-bulk.sh
 elif [ $FIO_TEST_SET = 'single' ]; then
     /fio-single.sh
+elif [ -f $FIO_TEST_SET ]; then
+        cat $FIO_TEST_SET | while read opts; do
+                params=($(echo "$opts" | tr ',' '\n'))
+                echo "### Running Task: ${params[@]}"
+                # Map params to vars and run 'single'
+                export FIO_READWRITE="${params[0]}"
+                export FIO_RWMIXREAD="${params[1]}"
+                export FIO_BS="${params[2]}"
+                export FIO_IODEPTH="${params[3]}"
+                export FIO_SIZE="${params[4]}"
+                # start current task
+                /fio-single.sh
+                # remove lastrun stopper
+                rm $FIO_MOUNTPOINT/lastrun
+        done
 else
     echo "# Unknown test set of '$FIO_TEST_SET'"
     echo "# Nothing to do, set env var FIO_TEST_SET to either 'bulk' or 'single'"

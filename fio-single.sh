@@ -3,11 +3,12 @@ set -e
 
 # Round down time to nearest 5 min and get time +7 min in future
 function get_time() {
-    # 7 min gives 3 min for pod to start in most critical circumstances
-    # I.e. when scheduled from 8:54 to 8:57 (down to 8:50 and up to 8:57)
+    # 10 min gives 6 min for pod to start in most critical circumstances
+    # I.e. when scheduled from 8:54 to 9:00 (down to 8:50 and up to 9:00)
     h=$( date +"%H" )
     m=$( date +"%M" )
-    (( m /= 5, m *= 5, m += 7 )) && echo "$h:$m"
+    (( i = m/5, i *= 5, m = 10-(m-i) ))
+    date +"%H:%M" -d"+$m min"
 }
 
 # Credits to F.Hauri
@@ -52,7 +53,7 @@ FIO_RANDREPEAT=$( get_var $FIO_RANDREPEAT 0)
 FIO_VERIFY=$( get_var $FIO_VERIFY 0)
 FIO_IOENGINE=$( get_var $FIO_IOENGINE libaio)
 FIO_DIRECT=$( get_var $FIO_DIRECT "1")
-FIO_GTOD_REDUCE=$( get_var $FIO_GTOD_REDUCE 1)
+FIO_GTOD_REDUCE=$( get_var $FIO_GTOD_REDUCE 0)
 FIO_NAME=$( get_var $FIO_NAME "single_run")
 FIO_MOUNTPOINT=$( get_var $FIO_MOUNTPOINT "/tmp")
 FIO_BS=$( get_var $FIO_BS "4k")
@@ -66,10 +67,10 @@ FIO_RUNTIME=$( get_var $FIO_RUNTIME "30s")
 
 # Sequential specific
 FIO_OFFSET_INCREMENT=$( get_var $FIO_OFFSET_INCREMENT "500M")
-FIO_JOBS=$( get_var $SEQ_JOBS "4")
+FIO_JOBS=$( get_var $FIO_JOBS "4")
 
 # Mixed specific
-FIO_RWMIXREAD=$( get_var $MIX_RWMIXREAD "50")
+FIO_RWMIXREAD=$( get_var $FIO_RWMIXREAD "50")
 
 # Option builders
 function get_options() {
@@ -130,6 +131,14 @@ function get_seq_write() {
 
 
 # Main
+TIMESTAMP=$( date +"%Y-%m-%d-%H-%M" )
+if [ -f "$FIO_MOUNTPOINT/lastrun" ]; then
+   # we already done with this test, sleep for 15 min and exit
+   # sleep is used to prevent frequent reruns if this used in StateFulSet
+   sleep 900
+   exit 1
+fi
+
 echo "# Running $RUN_MODE single fio test: $FIO_READWRITE"
 FIO_CMD="fio $( get_options )"
 if [ $FIO_READWRITE = 'randrw' ]; then
@@ -168,12 +177,14 @@ echo "==== Summary ====="
 echo "=================="
 
 # Parse output and write a report
-LATENCY_VAL=$(get_latency $FIO_OUT)
+LATENCY_VAL=( $(get_latency "$FIO_OUT") )
 
 # Prepare 'report.csv'
 REPORT_FILE=$FIO_MOUNTPOINT/"report.csv"
-touch $REPORT_FILE
-echo "# hostname,test_run,test_name,read_percent,jobs,offset,block_size,io_depth,size,iops,bw,latency" >>$REPORT_FILE
+if [ ! -f $REPORTFILE ]; then
+    touch $REPORT_FILE
+    echo "# hostname,timestamp,test_run,test_name,read_percent,jobs,offset,block_size,io_depth,size,iops,bw,latency" >>$REPORT_FILE
+fi
 
 if [ $FIO_READWRITE = 'randrw' ]; then
     # get both read and write
@@ -186,8 +197,9 @@ if [ $FIO_READWRITE = 'randrw' ]; then
     echo "BW: $READ_BW_VAL / $WRITE_BW_VAL"
 	echo "Average Latency (usec): $LATENCY_VAL"
 	# save values as csv
-	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,$FIO_RWMIXREAD,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$READ_IOPS_VAL,$READ_BW_VAL,$LATENCY_VAL" >>$REPORT_FILE	
-	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,$FIO_RWMIXREAD,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$WRITE_IOPS_VAL,$WRITE_BW_VAL,$LATENCY_VAL" >>$REPORT_FILE	
+	(( FIO_RWMIXWRITE = 100 - FIO_RWMIXREAD ))
+	echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,${FIO_READWRITE}_read,$FIO_RWMIXREAD,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$READ_IOPS_VAL,$READ_BW_VAL,${LATENCY_VAL[0]}" >>$REPORT_FILE	
+	echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,${FIO_READWRITE}_write,$FIO_RWMIXWRITE,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$WRITE_IOPS_VAL,$WRITE_BW_VAL,${LATENCY_VAL[1]}" >>$REPORT_FILE	
 elif [ $FIO_READWRITE = 'read' ]; then
     # get read values
     echo "Sequential Read"
@@ -196,7 +208,7 @@ elif [ $FIO_READWRITE = 'read' ]; then
     echo "IOPS: $READ_IOPS_VAL"
     echo "BW: $READ_SEQ_VAL"
 	# save values as csv
-	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,no,$FIO_JOBS,$FIO_OFFSET_INCREMENT,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$READ_IOPS_VAL,$READ_SEQ_VAL,$LATENCY_VAL" >>$REPORT_FILE
+	echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,$FIO_READWRITE,no,$FIO_JOBS,$FIO_OFFSET_INCREMENT,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$READ_IOPS_VAL,$READ_SEQ_VAL,$LATENCY_VAL" >>$REPORT_FILE
 elif [ $FIO_READWRITE = 'write' ]; then
     # get write values
     echo "Sequential Write"
@@ -205,7 +217,7 @@ elif [ $FIO_READWRITE = 'write' ]; then
     echo "IOPS: $WRITE_IOPS_VAL"
     echo "BW: $WRITE_SEQ_VAL"
 	# save values as csv
-	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,no,$FIO_JOBS,$FIO_OFFSET_INCREMENT,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$WRITE_IOPS_VAL,$WRITE_SEQ_VAL,$LATENCY_VAL" >>$REPORT_FILE
+	echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,$FIO_READWRITE,no,$FIO_JOBS,$FIO_OFFSET_INCREMENT,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$WRITE_IOPS_VAL,$WRITE_SEQ_VAL,$LATENCY_VAL" >>$REPORT_FILE
 elif [ $FIO_READWRITE = 'randread' ]; then
     # get read values
     echo "Random Read"
@@ -214,7 +226,7 @@ elif [ $FIO_READWRITE = 'randread' ]; then
     echo "IOPS: $READ_IOPS_VAL"
     echo "BW: $READ_BW_VAL"
 	# save values as csv
-	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,no,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$READ_IOPS_VAL,$READ_BW_VAL,$LATENCY_VAL" >>$REPORT_FILE	
+	echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,$FIO_READWRITE,no,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$READ_IOPS_VAL,$READ_BW_VAL,$LATENCY_VAL" >>$REPORT_FILE	
 elif [ $FIO_READWRITE = 'randwrite' ]; then
     # get write values
     echo "Random Write"
@@ -223,10 +235,12 @@ elif [ $FIO_READWRITE = 'randwrite' ]; then
     echo "IOPS: $WRITE_IOPS_VAL"
     echo "BW: $WRITE_BW_VAL"
 	# save values as csv
-	echo "$HOSTNAME,$FIO_TEST_SET,$FIO_READWRITE,no,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$WRITE_IOPS_VAL,$WRITE_BW_VAL,$LATENCY_VAL" >>$REPORT_FILE	
+	echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,$FIO_READWRITE,no,1,no,$FIO_BS,$FIO_IODEPTH,$FIO_SIZE,$WRITE_IOPS_VAL,$WRITE_BW_VAL,$LATENCY_VAL" >>$REPORT_FILE	
 fi
 
 rm $FIO_MOUNTPOINT/fiotest
+# Set stopper before next run
+echo "$TIMESTAMP" >$FIO_MOUNTPOINT/lastrun
 exit 0
 
 exec "$@"

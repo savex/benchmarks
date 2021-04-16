@@ -7,7 +7,8 @@ function get_time() {
     # I.e. when scheduled from 8:54 to 8:57 (down to 8:50 and up to 8:57)
     h=$( date +"%H" )
     m=$( date +"%M" )
-    (( m /= 5, m *= 5, m += 7 )) && echo "$h:$m"
+    (( i = m/5, i *= 5, m = 10 - (m - i) ))
+    date +"%H:%M" -d"+$m min"
 }
 
 # Credits to F.Hauri
@@ -76,11 +77,11 @@ MIX_DP=$( get_var $MIX_DP $FIO_IODEPTH)
 MIX_RWMIXREAD=$( get_var $MIX_RWMIXREAD "75")
 
 function run_fio() {
-    fio --randrepeat=0 --verify=0 --ioengine=libaio --direct=$FIO_DIRECT --gtod_reduce=1 --name=$1 --filename=$FIO_MOUNTPOINT/fiotest --bs=$2 --iodepth=$3 --size=$FIO_SIZE --readwrite=$4 --time_based --ramp_time=2s --runtime=15s
+    fio --randrepeat=0 --verify=0 --ioengine=libaio --direct=$FIO_DIRECT --gtod_reduce=0 --name=$1 --filename=$FIO_MOUNTPOINT/fiotest --bs=$2 --iodepth=$3 --size=$FIO_SIZE --readwrite=$4 --time_based --ramp_time=2s --runtime=15s
 }
 
 function run_fio_seq() {
-    fio --randrepeat=0 --verify=0 --ioengine=libaio --direct=$FIO_DIRECT --gtod_reduce=1 --name=$1 --filename=$FIO_MOUNTPOINT/fiotest --bs=$2 --iodepth=$3 --size=$FIO_SIZE --readwrite=$4 --time_based --ramp_time=2s --runtime=15s --thread --numjobs=${SEQ_JOBS} --offset_increment=$FIO_OFFSET_INCREMENT
+    fio --randrepeat=0 --verify=0 --ioengine=libaio --direct=$FIO_DIRECT --gtod_reduce=0 --name=$1 --filename=$FIO_MOUNTPOINT/fiotest --bs=$2 --iodepth=$3 --size=$FIO_SIZE --readwrite=$4 --time_based --ramp_time=2s --runtime=15s --thread --numjobs=${SEQ_JOBS} --offset_increment=$FIO_OFFSET_INCREMENT
 }
 
 # Tests
@@ -180,7 +181,7 @@ if [ "$FIO_QUICK" == "" ] || [ "$FIO_QUICK" == "no" ]; then
     WRITE_SEQ_VAL=$(test_seq_write)
 
     echo "# Testing Read/Write Mixed ($MIX_BS/$MIX_DP/$FIO_SIZE, rwmixread at $MIX_RWMIXREAD%)"
-    RW_MIX=$(fio --randrepeat=0 --verify=0 --ioengine=libaio --direct=$FIO_DIRECT --gtod_reduce=1 --name=rw_mix --filename=$FIO_MOUNTPOINT/fiotest --bs=$MIX_BS --iodepth=$MIX_DP --size=$FIO_SIZE --readwrite=randrw --rwmixread=$MIX_RWMIXREAD --time_based --ramp_time=2s --runtime=15s)
+    RW_MIX=$(fio --randrepeat=0 --verify=0 --ioengine=libaio --direct=$FIO_DIRECT --gtod_reduce=0 --name=rw_mix --filename=$FIO_MOUNTPOINT/fiotest --bs=$MIX_BS --iodepth=$MIX_DP --size=$FIO_SIZE --readwrite=randrw --rwmixread=$MIX_RWMIXREAD --time_based --ramp_time=2s --runtime=15s)
     echo "$RW_MIX" >$FIO_MOUNTPOINT/test_mix_readwrite.log
     RW_MIX_R_IOPS=$(echo "$RW_MIX"|grep -E 'read ?:'|grep -Eoi 'IOPS=[0-9k.]+'|cut -d'=' -f2)
     RW_MIX_W_IOPS=$(echo "$RW_MIX"|grep -E 'write:'|grep -Eoi 'IOPS=[0-9k.]+'|cut -d'=' -f2)
@@ -200,18 +201,21 @@ fi
 
 # Prepare report.csv
 REPORT_FILE=$FIO_MOUNTPOINT/"report.csv"
-touch $REPORT_FILE
-echo "# hostname,test_run,test_name,read_percent,jobs,offset,block_size,io_depth,size,iops,bw,latency" >>$REPORT_FILE
-echo "$HOSTNAME,$FIO_TEST_SET,randread_iops,100%,1,no,$IOPS_BS,$IOPS_DP,$FIO_SIZE,$READ_IOPS_VAL,," >>$REPORT_FILE
-echo "$HOSTNAME,$FIO_TEST_SET,randwrite_iops,100%,1,no,$IOPS_BS,$IOPS_DP,$FIO_SIZE,$WRITE_IOPS_VAL,," >>$REPORT_FILE
-echo "$HOSTNAME,$FIO_TEST_SET,read_bw,100%,1,no,$BW_BS,$BW_DP,$FIO_SIZE,,$READ_BW_VAL," >>$REPORT_FILE
-echo "$HOSTNAME,$FIO_TEST_SET,write_bw,100%,1,no,$BW_BS,$BW_DP,$FIO_SIZE,,$WRITE_BW_VAL," >>$REPORT_FILE
-echo "$HOSTNAME,$FIO_TEST_SET,randread_lat,100%,1,no,$LAT_BS,$LAT_DP,$FIO_SIZE,,,$READ_LATENCY_VAL" >>$REPORT_FILE
-echo "$HOSTNAME,$FIO_TEST_SET,randwrite_lat,100%,1,no,$LAT_BS,$LAT_DP,$FIO_SIZE,,,$WRITE_LATENCY_VAL" >>$REPORT_FILE
-echo "$HOSTNAME,$FIO_TEST_SET,read_seq,100%,$SEQ_JOBS,$FIO_OFFSET_INCREMENT,$SEQ_BS,$SEQ_DP,$FIO_SIZE,,$READ_SEQ_VAL," >>$REPORT_FILE
-echo "$HOSTNAME,$FIO_TEST_SET,write_seq,100%,$SEQ_JOBS,$FIO_OFFSET_INCREMENT,$SEQ_BS,$SEQ_DP,$FIO_SIZE,,$WRITE_SEQ_VAL," >>$REPORT_FILE
-echo "$HOSTNAME,$FIO_TEST_SET,randrw_read,100%,1,no,$MIX_BS,$MIX_DP,$FIO_SIZE,$RW_MIX_R_IOPS,," >>$REPORT_FILE
-echo "$HOSTNAME,$FIO_TEST_SET,randrw_write,100%,1,no,$MIX_BS,$MIX_DP,$FIO_SIZE,$RW_MIX_W_IOPS,," >>$REPORT_FILE
+if [ ! -f $REPORTFILE ]; then
+    touch $REPORT_FILE
+    echo "# hostname,timestamp,test_run,test_name,read_percent,jobs,offset,block_size,io_depth,size,iops,bw,latency" >>$REPORT_FILE
+fi
+(( MIX_RWMIXWRITE = 100 - MIX_RWMIXREAD ))
+echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,randread_iops,100%,1,no,$IOPS_BS,$IOPS_DP,$FIO_SIZE,$READ_IOPS_VAL,," >>$REPORT_FILE
+echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,randwrite_iops,100%,1,no,$IOPS_BS,$IOPS_DP,$FIO_SIZE,$WRITE_IOPS_VAL,," >>$REPORT_FILE
+echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,read_bw,100%,1,no,$BW_BS,$BW_DP,$FIO_SIZE,,$READ_BW_VAL," >>$REPORT_FILE
+echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,write_bw,100%,1,no,$BW_BS,$BW_DP,$FIO_SIZE,,$WRITE_BW_VAL," >>$REPORT_FILE
+echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,randread_lat,100%,1,no,$LAT_BS,$LAT_DP,$FIO_SIZE,,,$READ_LATENCY_VAL" >>$REPORT_FILE
+echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,randwrite_lat,100%,1,no,$LAT_BS,$LAT_DP,$FIO_SIZE,,,$WRITE_LATENCY_VAL" >>$REPORT_FILE
+echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,read_seq,100%,$SEQ_JOBS,$FIO_OFFSET_INCREMENT,$SEQ_BS,$SEQ_DP,$FIO_SIZE,,$READ_SEQ_VAL," >>$REPORT_FILE
+echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,write_seq,100%,$SEQ_JOBS,$FIO_OFFSET_INCREMENT,$SEQ_BS,$SEQ_DP,$FIO_SIZE,,$WRITE_SEQ_VAL," >>$REPORT_FILE
+echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,randrw_read,$MIX_RWMIXREAD%,1,no,$MIX_BS,$MIX_DP,$FIO_SIZE,$RW_MIX_R_IOPS,," >>$REPORT_FILE
+echo "$HOSTNAME,$TIMESTAMP,$FIO_TEST_SET,randrw_write,$MIX_RWMIXWRITE,1,no,$MIX_BS,$MIX_DP,$FIO_SIZE,$RW_MIX_W_IOPS,," >>$REPORT_FILE
 
 rm $FIO_MOUNTPOINT/fiotest
 exit 0
