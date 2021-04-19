@@ -21,7 +21,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: pod # Label selector that determines which Pods belong to the StatefulSet
+      app: fio # Label selector that determines which Pods belong to the StatefulSet
                  # Must match spec: template: metadata: labels
   serviceName: "fio-fake"
   replicas: 5
@@ -30,14 +30,14 @@ spec:
       labels:
         app: fio # Pod template's label selector
     spec:
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 60
       containers:
       - name: fio
         image: savex13/benchmarks:fio-3-26
         imagePullPolicy: IfNotPresent
         env:
           - name: FIO_MOUNTPOINT
-            value: /data
+            value: "/data"
          # Run single fio test
           - name: FIO_TEST_SET
             value: "single"
@@ -73,38 +73,19 @@ spec:
             value: "64"
           - name: FIO_SIZE
             value: "2G"
-        
+    
           - name: FIO_RAMP_TIME
             value: "5s"
           - name: FIO_RUNTIME
             value: "30s"
 
-          # Sequential specific
-          # - name: FIO_OFFSET_INCREMENT
-          #   value: "500M"
-          # - name: FIO_JOBS
-          #   value: "4"
-
           # Mixed specific
           # - name: FIO_RWMIXREAD
-          #   value: "50"
-
-
-          # Other options
-          # - name: FIO_RANDREPEAT
-          #   value: "0"
-          # - name: FIO_VERIFY
-          #   value: "0"
-          # - name: FIO_IOENGINE
-          #   value: libaio
-          # - name: FIO_DIRECT
-          #   value: "1"
-          # - name: FIO_GTOD_REDUCE
-          #   value: "0"
+          #   value: 50
 
         volumeMounts:
-        - name: fio-vol
-          mountPath: /data
+          - name: fio-vol
+            mountPath: /data
       restartPolicy: Never
   volumeClaimTemplates:
   - metadata:
