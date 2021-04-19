@@ -45,14 +45,14 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: pod # Label selector that determines which Pods belong to the StatefulSet
+      app: fio # Label selector that determines which Pods belong to the StatefulSet
                  # Must match spec: template: metadata: labels
   serviceName: "fio-fake"
   replicas: 5
   template:
     metadata:
       labels:
-        app: nginx # Pod template's label selector
+        app: fio # Pod template's label selector
     spec:
       terminationGracePeriodSeconds: 60
       containers:
@@ -61,7 +61,7 @@ spec:
         imagePullPolicy: IfNotPresent
         env:
           - name: FIO_MOUNTPOINT
-            value: /data
+            value: "/data"
          # Run single fio test
           - name: FIO_TEST_SET
             value: "single"
@@ -76,43 +76,43 @@ spec:
 
           # Test specific
           - name: FIO_NAME
-            value: single_run
+            value: "single_run"
 
           # Test modes (default: randrw)
           # - name: FIO_READWRITE
           # Random read
-          #  value: randread        
+          #  value: "randread"
           # Random write
-          #  value: randwrite
+          #  value: "randwrite"
           # Sequential read
-          #  value: read
+          #  value: "read"
           # Sequential write
-          #  value: write
+          #  value: "write"
           # Mixed random read/write
-          #  value: randrw
+          #  value: "randrw"
 
 
           - name: FIO_BS
-            value: 4k
+            value: "4k"
           - name: FIO_IODEPTH
-            value: 64
+            value: "64"
           - name: FIO_SIZE
-            value: 5G
+            value: "5G"
         
           - name: FIO_RAMP_TIME
-            value: 5s
+            value: "5s"
           - name: FIO_RUNTIME
-            value: 30s
+            value: "30s"
 
           # Sequential specific
           # - name: FIO_OFFSET_INCREMENT
-          #   value: 500M
+          #   value: "500M"
           # - name: FIO_JOBS
-          #   value: 4
+          #   value: "4"
 
           # Mixed specific
           # - name: FIO_RWMIXREAD
-          #   value: 50
+          #   value: "50"
 
 
           # Other options
@@ -125,7 +125,7 @@ spec:
           # - name: FIO_DIRECT
           #   value: 1
           # - name: FIO_GTOD_REDUCE
-          #   value: 1
+          #   value: 0
 
         volumeMounts:
         - name: fio-vol

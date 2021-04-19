@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-# Round down time to nearest 5 min and get time +7 min in future
+# Round down time to nearest 5 min and get time +10 min in future
 function get_time() {
     # 10 min gives 6 min for pod to start in most critical circumstances
-    # I.e. when scheduled from 8:54 to 9:00 (down to 8:50 and up to 9:00)
+    # I.e. when scheduled from 8:50 to 9:00 (down to 8:50 and up to 9:00)
     h=$( date +"%H" )
     m=$( date +"%M" )
     (( i = m/5, i *= 5, m = 10-(m-i) ))
@@ -135,6 +135,7 @@ TIMESTAMP=$( date +"%Y-%m-%d-%H-%M" )
 if [ -f "$FIO_MOUNTPOINT/lastrun" ]; then
    # we already done with this test, sleep for 15 min and exit
    # sleep is used to prevent frequent reruns if this used in StateFulSet
+   echo "# Last run was completed on $(cat $FIO_MOUNTPOINT/lastrun). Test skipped."
    sleep 900
    exit 1
 fi
@@ -168,7 +169,7 @@ if [ $RUN_MODE = 'synced' ]; then
     sleepUntil $target_time
 fi
 FIO_OUT=$( $FIO_CMD )
-echo "$FIO_OUT" >$FIO_MOUNTPOINT/test_$RUN_MODE_$FIO_READWRITE.log
+echo "$FIO_OUT" >$FIO_MOUNTPOINT/test-$RUN_MODE-$FIO_READWRITE-$FIO_BS-$FIO_IODEPTH-$FIO_SIZE-$TIMESTAMP.log
 
 echo "Single test complete."
 echo
@@ -180,7 +181,7 @@ echo "=================="
 LATENCY_VAL=( $(get_latency "$FIO_OUT") )
 
 # Prepare 'report.csv'
-REPORT_FILE=$FIO_MOUNTPOINT/"report.csv"
+REPORT_FILE=$FIO_MOUNTPOINT/$HOSTNAME"-report.csv"
 if [ ! -f $REPORTFILE ]; then
     touch $REPORT_FILE
     echo "# hostname,timestamp,test_run,test_name,read_percent,jobs,offset,block_size,io_depth,size,iops,bw,latency" >>$REPORT_FILE
@@ -239,7 +240,7 @@ elif [ $FIO_READWRITE = 'randwrite' ]; then
 fi
 
 rm $FIO_MOUNTPOINT/fiotest
-# Set stopper before next run
+# Set "stopper" before next run
 echo "$TIMESTAMP" >$FIO_MOUNTPOINT/lastrun
 exit 0
 

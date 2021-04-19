@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-# Round down time to nearest 5 min and get time +7 min in future
+# Round down time to nearest 5 min and get time +10 min in future
 function get_time() {
-    # 7 min gives 3 min for pod to start in most critical circumstances
-    # I.e. when scheduled from 8:54 to 8:57 (down to 8:50 and up to 8:57)
+    # 10 min gives 6 min for pod to start in most critical circumstances
+    # I.e. when scheduled from 8:50 to 9:00 (down to 8:50 and up to 9:00)
     h=$( date +"%H" )
     m=$( date +"%M" )
     (( i = m/5, i *= 5, m = 10 - (m - i) ))
@@ -87,53 +87,62 @@ function run_fio_seq() {
 # Tests
 function test_iops_read() {
     READ_IOPS=$(run_fio read_iops $IOPS_BS $IOPS_DP randread)
-    echo "$READ_IOPS" >$FIO_MOUNTPOINT/test_iops_read.log
+    echo "$READ_IOPS" >$FIO_MOUNTPOINT/"test-iops-read-$HOSTNAME-$TIMESTAMP.log"
     echo "$READ_IOPS"|grep -E 'read ?:'|grep -Eoi 'IOPS=[0-9k.]+'|cut -d'=' -f2
 }
 
 function test_iops_write() {
     WRITE_IOPS=$(run_fio write_iops $IOPS_BS $IOPS_DP randwrite)
-    echo "$WRITE_IOPS" >$FIO_MOUNTPOINT/test_iops_write.log
+    echo "$WRITE_IOPS" >$FIO_MOUNTPOINT/"test-iops-write-$HOSTNAME-$TIMESTAMP.log"
     echo "$WRITE_IOPS"|grep -E 'write:'|grep -Eoi 'IOPS=[0-9k.]+'|cut -d'=' -f2
 }
 
 function test_bw_read() {
     READ_BW=$(run_fio read_bw $BW_BS $BW_DP randread)
-    echo "$READ_BW" >$FIO_MOUNTPOINT/test_bw_read.log
+    echo "$READ_BW" >$FIO_MOUNTPOINT/"test-bw-read-$HOSTNAME-$TIMESTAMP.log"
     echo "$READ_BW"|grep -E 'read ?:'|grep -Eoi 'BW=[0-9GMKiBs/.]+'|cut -d'=' -f2
 }
 
 function test_bw_write() {
     WRITE_BW=$(run_fio write_bw $BW_BS $BW_DP randwrite)
-    echo "$WRITE_BW" >$FIO_MOUNTPOINT/test_bw_write.log
+    echo "$WRITE_BW" >$FIO_MOUNTPOINT/"test-bw-write-$HOSTNAME-$TIMESTAMP.log"
     echo "$WRITE_BW"|grep -E 'write:'|grep -Eoi 'BW=[0-9GMKiBs/.]+'|cut -d'=' -f2
 }
 
 function test_latency_read() {
     READ_LATENCY=$(run_fio read_latency $LAT_BS $LAT_DP randread)
-    echo "$READ_LATENCY" >$FIO_MOUNTPOINT/test_latency_read.log
+    echo "$READ_LATENCY" >$FIO_MOUNTPOINT/"test-latency-read-$HOSTNAME-$TIMESTAMP.log"
     echo "$READ_LATENCY"|grep ' lat.*avg'|grep -Eoi 'avg=[0-9.]+'|cut -d'=' -f2
 }
 
 function test_latency_write() {
     WRITE_LATENCY=$(run_fio write_latency $LAT_BS $LAT_DP randwrite)
-    echo "$WRITE_LATENCY" >$FIO_MOUNTPOINT/test_latency_write.log
+    echo "$WRITE_LATENCY" >$FIO_MOUNTPOINT/"test-latency-write-$HOSTNAME-$TIMESTAMP.log"
     echo "$WRITE_LATENCY"|grep ' lat.*avg'|grep -Eoi 'avg=[0-9.]+'|cut -d'=' -f2
 }
 
 function test_seq_read() {
     READ_SEQ=$(run_fio_seq read_seq $SEQ_BS $SEQ_DP read)
-    echo "$READ_SEQ" >$FIO_MOUNTPOINT/test_seq_read.log
+    echo "$READ_SEQ" >$FIO_MOUNTPOINT/"test-seq-read-$HOSTNAME-$TIMESTAMP.log"
     echo "$READ_SEQ"|grep -E 'READ:'|grep -Eoi '(aggrb|bw)=[0-9GMKiBs/.]+'|cut -d'=' -f2
 }
 
 function test_seq_write() {
     WRITE_SEQ=$(run_fio_seq write_seq $SEQ_BS $SEQ_DP write)
-    echo "$WRITE_SEQ" >$FIO_MOUNTPOINT/test_seq_write.log
+    echo "$WRITE_SEQ" >$FIO_MOUNTPOINT/"test-seq-write-$HOSTNAME-$TIMESTAMP.log"
     echo "$WRITE_SEQ"|grep -E 'WRITE:'|grep -Eoi '(aggrb|bw)=[0-9GMKiBs/.]+'|cut -d'=' -f2
 }
 
 # Main
+TIMESTAMP=$( date +"%Y-%m-%d-%H-%M" )
+if [ -f "$FIO_MOUNTPOINT/lastrun" ]; then
+   # we already done with this test, sleep for 15 min and exit
+   # sleep is used to prevent frequent reruns if this used in StateFulSet
+   echo "# Last run was completed on $(cat $FIO_MOUNTPOINT/lastrun). Test skipped."
+   sleep 900
+   exit 1
+fi
+
 echo "# Running $RUN_MODE bulk fio tests"
 echo "Working dir: ${FIO_MOUNTPOINT}"
 echo "Size: ${FIO_SIZE}"
@@ -200,7 +209,7 @@ if [ -z $FIO_QUICK ] || [ "$FIO_QUICK" == "no" ]; then
 fi
 
 # Prepare report.csv
-REPORT_FILE=$FIO_MOUNTPOINT/"report.csv"
+REPORT_FILE=$FIO_MOUNTPOINT/"$HOSTNAME-report.csv"
 if [ ! -f $REPORTFILE ]; then
     touch $REPORT_FILE
     echo "# hostname,timestamp,test_run,test_name,read_percent,jobs,offset,block_size,io_depth,size,iops,bw,latency" >>$REPORT_FILE

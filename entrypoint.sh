@@ -26,23 +26,45 @@ if [ $FIO_TEST_SET = 'bulk' ]; then
 elif [ $FIO_TEST_SET = 'single' ]; then
     /fio-single.sh
 elif [ -f $FIO_TEST_SET ]; then
+        # Do a param validation first
+        errors=0
         cat $FIO_TEST_SET | while read opts; do
-                params=($(echo "$opts" | tr ',' '\n'))
-                echo "### Running Task: ${params[@]}"
-                # Map params to vars and run 'single'
-                export FIO_READWRITE="${params[0]}"
-                export FIO_RWMIXREAD="${params[1]}"
-                export FIO_BS="${params[2]}"
-                export FIO_IODEPTH="${params[3]}"
-                export FIO_SIZE="${params[4]}"
-                # start current task
-                /fio-single.sh
-                # remove lastrun stopper
-                rm $FIO_MOUNTPOINT/lastrun
+			params=($(echo "$opts" | tr ',' '\n'))
+			if [ ${#params[@]} != 5 ]; then
+			   echo "# Incorrect number of params (${#params[@]}) in $FIO_TEST_SET, line: '$opts'"
+			fi
+			(( errors += 1 ))
+        done
+        if [ $errors > 0 ]; then
+            echo "# $errors found in taskfile.conf. Exiting."
+            echo
+            echo "# Please, use following format:"
+            echo "FIO_READWRITE,FIO_RWMIXREAD,FIO_BS,FIO_IODEPTH,FIO_SIZE"
+            echo
+            echo "# Example:"
+            echo "randrw,70,64k,64,5G"
+            echo "randread,100,8k,16,5G"
+            exit 1
+        fi
+        # Start an actual run
+        cat $FIO_TEST_SET | while read opts; do
+			params=($(echo "$opts" | tr ',' '\n'))
+			echo
+			echo "### Running Task: ${params[@]}"
+			# Map params to vars and run 'single'
+			export FIO_READWRITE="${params[0]}"
+			export FIO_RWMIXREAD="${params[1]}"
+			export FIO_BS="${params[2]}"
+			export FIO_IODEPTH="${params[3]}"
+			export FIO_SIZE="${params[4]}"
+			# start current task
+			/fio-single.sh
+			# remove lastrun stopper
+			rm $FIO_MOUNTPOINT/lastrun
         done
 else
     echo "# Unknown test set of '$FIO_TEST_SET'"
-    echo "# Nothing to do, set env var FIO_TEST_SET to either 'bulk' or 'single'"
+    echo "# Nothing to do, set env var FIO_TEST_SET to either 'bulk', 'single' or a path to mounted ConfigMap for taskfile.conf"
     exit 1
 fi
 
