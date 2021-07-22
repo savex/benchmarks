@@ -26,7 +26,7 @@ function get_time() {
     # I.e. when scheduled from 8:50 to 9:00 (down to 8:50 and up to 9:00)
     h=$( date +"%H" )
     m=$( date +"%M" )
-    (( i = m/5, i *= 5, m = 10-(m-i) ))
+    (( i = m/5, i *= 5, m = $SLEEP_BASE-(m-i) ))
     date +"%H:%M" -d"+$m min"
 }
 
