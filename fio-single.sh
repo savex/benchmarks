@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+SLEEP_BASE=$( get_var $SLEEP_BASE 10)
+
 # Round down time to nearest 5 min and get time +10 min in future
 function get_time() {
     # 10 min gives 6 min for pod to start in most critical circumstances

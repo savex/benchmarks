@@ -47,6 +47,8 @@ elif [ -f $FIO_TEST_SET ]; then
             exit 1
         fi
         # Start an actual run
+        # set initial sleep time to 10 min
+        export SLEEP_BASE=10
         cat $FIO_TEST_SET | while read opts; do
 			params=($(echo "$opts" | tr ',' '\n'))
 			echo
@@ -61,6 +63,8 @@ elif [ -f $FIO_TEST_SET ]; then
 			/fio-single.sh
 			# remove lastrun stopper
 			rm $FIO_MOUNTPOINT/lastrun
+                        # reset sleep time to 5 min
+                        export SLEEP_BASE=5
         done
 else
     echo "# Unknown test set of '$FIO_TEST_SET'"
