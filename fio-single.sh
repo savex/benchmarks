@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -e
 
+# Fancy "get default value" function
+function get_var() {
+    # if $1 and $2 exists, then we must use $1
+    # if there is only $1, then $1 is actually empty and it is a $2 shown as $1
+    # if nothing, then just break exit
+    if [ -z $2 ]; then
+        if [ -z $1 ]; then
+            echo "Error in script while setting vars"
+            exit 1
+        else
+            echo $1
+        fi
+    else
+       echo $1
+    fi
+}
+
 SLEEP_BASE=$( get_var $SLEEP_BASE 10)
 
 # Round down time to nearest 5 min and get time +10 min in future
@@ -28,23 +45,6 @@ function sleepUntil() { # args [-q] <HH[:MM[:SS]]> [more days]
     ))
     $quiet || printf 'sleep %ss, -> %(%c)T\n' $slp $((now+slp))
     sleep $slp
-}
-
-# Fancy "get default value" function
-function get_var() {
-    # if $1 and $2 exists, then we must use $1
-    # if there is only $1, then $1 is actually empty and it is a $2 shown as $1
-    # if nothing, then just break exit
-    if [ -z $2 ]; then
-        if [ -z $1 ]; then
-            echo "Error in script while setting vars"
-            exit 1
-        else
-            echo $1
-        fi
-    else
-       echo $1
-    fi
 }
 
 # Global vars
